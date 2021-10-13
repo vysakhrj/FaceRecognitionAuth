@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DataBaseService {
   // singleton boilerplate
@@ -34,9 +35,17 @@ class DataBaseService {
 
   /// [Name]: name of the new user
   /// [Data]: Face representation for Machine Learning model
-  Future saveData(String user, String password, List modelData) async {
-    String userAndPass = user + ':' + password;
-    _db[userAndPass] = modelData;
+  Future saveData(String id, String user, String mobile, String role,
+      List modelData) async {
+    print(id);
+    print(user);
+    print(mobile);
+    print(role);
+    SharedPreferences pref = await SharedPreferences.getInstance();
+    pref.setStringList(id, [user, mobile, role]);
+
+    // String userAndPass = user + ':' + id;
+    _db[id] = modelData;
     jsonFile.writeAsStringSync(json.encode(_db));
   }
 

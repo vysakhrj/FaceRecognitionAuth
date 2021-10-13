@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:face_net_authentication/pages/widgets/FacePainter.dart';
 import 'package:face_net_authentication/pages/widgets/auth-action-button.dart';
-import 'package:face_net_authentication/pages/widgets/camera_header.dart';
+import 'package:face_net_authentication/pages/widgets/header.dart';
 import 'package:face_net_authentication/services/camera.service.dart';
 import 'package:face_net_authentication/services/facenet.service.dart';
 import 'package:face_net_authentication/services/ml_kit_service.dart';
@@ -13,11 +13,11 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
 class SignIn extends StatefulWidget {
-  final CameraDescription cameraDescription;
+  // final CameraDescription cameraDescription;
 
   const SignIn({
     Key key,
-    @required this.cameraDescription,
+    // @required this.cameraDescription,
   }) : super(key: key);
 
   @override
@@ -39,6 +39,7 @@ class SignInState extends State<SignIn> {
   // switchs when the user press the camera
   bool _saving = false;
   bool _bottomSheetVisible = false;
+  bool frontCam = true;
 
   String imagePath;
   Size imageSize;
@@ -61,13 +62,19 @@ class SignInState extends State<SignIn> {
 
   /// starts the camera & start framing faces
   _start() async {
+    List<CameraDescription> cameras = await availableCameras();
+    CameraDescription cameraDescription1 = cameras.firstWhere(
+      (CameraDescription camera) =>
+          camera.lensDirection ==
+          (frontCam ? CameraLensDirection.front : CameraLensDirection.back),
+    );
     _initializeControllerFuture =
-        _cameraService.startService(widget.cameraDescription);
+        _cameraService.startService(cameraDescription1);
     await _initializeControllerFuture;
-
-    setState(() {
-      cameraInitializated = true;
-    });
+    if (mounted)
+      setState(() {
+        cameraInitializated = true;
+      });
 
     _frameFaces();
   }
@@ -89,18 +96,20 @@ class SignInState extends State<SignIn> {
           if (faces != null) {
             if (faces.length > 0) {
               // preprocessing the image
-              setState(() {
-                faceDetected = faces[0];
-              });
+              if (mounted)
+                setState(() {
+                  faceDetected = faces[0];
+                });
 
               if (_saving) {
                 _saving = false;
                 _faceNetService.setCurrentPrediction(image, faceDetected);
               }
             } else {
-              setState(() {
-                faceDetected = null;
-              });
+              if (mounted)
+                setState(() {
+                  faceDetected = null;
+                });
             }
           }
 
@@ -133,12 +142,12 @@ class SignInState extends State<SignIn> {
       await _cameraService.cameraController.stopImageStream();
       await Future.delayed(Duration(milliseconds: 200));
       XFile file = await _cameraService.takePicture();
-
-      setState(() {
-        _bottomSheetVisible = true;
-        pictureTaked = true;
-        imagePath = file.path;
-      });
+      if (mounted)
+        setState(() {
+          _bottomSheetVisible = true;
+          pictureTaked = true;
+          imagePath = file.path;
+        });
 
       return true;
     }
@@ -149,12 +158,20 @@ class SignInState extends State<SignIn> {
   }
 
   _reload() {
-    setState(() {
-      _bottomSheetVisible = false;
-      cameraInitializated = false;
-      pictureTaked = false;
-    });
+    if (mounted)
+      setState(() {
+        _bottomSheetVisible = false;
+        cameraInitializated = false;
+        pictureTaked = false;
+      });
     this._start();
+  }
+
+  toggle() {
+    setState(() {
+      frontCam = !frontCam;
+    });
+    _reload();
   }
 
   @override
@@ -217,9 +234,10 @@ class SignInState extends State<SignIn> {
                   return Center(child: CircularProgressIndicator());
                 }
               }),
-          CameraHeader(
+          Header(
             "LOGIN",
             onBackPressed: _onBackPressed,
+            toggle: toggle,
           )
         ],
       ),

@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:face_net_authentication/pages/widgets/FacePainter.dart';
 import 'package:face_net_authentication/pages/widgets/auth-action-button.dart';
-import 'package:face_net_authentication/pages/widgets/camera_header.dart';
+import 'package:face_net_authentication/pages/widgets/header.dart';
 import 'package:face_net_authentication/services/camera.service.dart';
 import 'package:face_net_authentication/services/facenet.service.dart';
 import 'package:face_net_authentication/services/ml_kit_service.dart';
@@ -34,6 +34,7 @@ class SignUpState extends State<SignUp> {
   // switchs when the user press the camera
   bool _saving = false;
   bool _bottomSheetVisible = false;
+  bool frontCam = true;
 
   // service injection
   MLKitService _mlKitService = MLKitService();
@@ -57,13 +58,19 @@ class SignUpState extends State<SignUp> {
 
   /// starts the camera & start framing faces
   _start() async {
+    List<CameraDescription> cameras = await availableCameras();
+    CameraDescription cameraDescription1 = cameras.firstWhere(
+      (CameraDescription camera) =>
+          camera.lensDirection ==
+          (frontCam ? CameraLensDirection.front : CameraLensDirection.back),
+    );
     _initializeControllerFuture =
-        _cameraService.startService(widget.cameraDescription);
+        _cameraService.startService(cameraDescription1);
     await _initializeControllerFuture;
-
-    setState(() {
-      cameraInitializated = true;
-    });
+    if (mounted)
+      setState(() {
+        cameraInitializated = true;
+      });
 
     _frameFaces();
   }
@@ -88,11 +95,11 @@ class SignUpState extends State<SignUp> {
       await Future.delayed(Duration(milliseconds: 200));
       XFile file = await _cameraService.takePicture();
       imagePath = file.path;
-
-      setState(() {
-        _bottomSheetVisible = true;
-        pictureTaked = true;
-      });
+      if (mounted)
+        setState(() {
+          _bottomSheetVisible = true;
+          pictureTaked = true;
+        });
 
       return true;
     }
@@ -113,20 +120,23 @@ class SignUpState extends State<SignUp> {
           List<Face> faces = await _mlKitService.getFacesFromImage(image);
 
           if (faces.length > 0) {
-            setState(() {
-              faceDetected = faces[0];
-            });
-
+            if (mounted)
+              setState(() {
+                faceDetected = faces[0];
+              });
             if (_saving) {
               _faceNetService.setCurrentPrediction(image, faceDetected);
-              setState(() {
-                _saving = false;
-              });
+
+              if (mounted)
+                setState(() {
+                  _saving = false;
+                });
             }
           } else {
-            setState(() {
-              faceDetected = null;
-            });
+            if (mounted)
+              setState(() {
+                faceDetected = null;
+              });
           }
 
           _detectingFaces = false;
@@ -143,12 +153,21 @@ class SignUpState extends State<SignUp> {
   }
 
   _reload() {
-    setState(() {
-      _bottomSheetVisible = false;
-      cameraInitializated = false;
-      pictureTaked = false;
-    });
+    if (mounted)
+      setState(() {
+        _bottomSheetVisible = false;
+        cameraInitializated = false;
+        pictureTaked = false;
+      });
     this._start();
+  }
+
+  toggle() {
+    setState(() {
+      frontCam = !frontCam;
+    });
+
+    _reload();
   }
 
   @override
@@ -166,7 +185,7 @@ class SignUpState extends State<SignUp> {
                   if (pictureTaked) {
                     return Container(
                       width: width,
-                      height: height,
+                      height: height * 0.7,
                       child: Transform(
                           alignment: Alignment.center,
                           child: FittedBox(
@@ -212,10 +231,7 @@ class SignUpState extends State<SignUp> {
                 }
               },
             ),
-            CameraHeader(
-              "SIGN UP",
-              onBackPressed: _onBackPressed,
-            )
+            Header("SIGN UP", onBackPressed: _onBackPressed, toggle: toggle)
           ],
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,

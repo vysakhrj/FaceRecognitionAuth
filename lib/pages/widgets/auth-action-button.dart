@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:face_net_authentication/pages/db/database.dart';
 import 'package:face_net_authentication/pages/models/user.model.dart';
-import 'package:face_net_authentication/pages/profile.dart';
+import 'package:face_net_authentication/pages/dashboard.dart';
 import 'package:face_net_authentication/pages/widgets/app_button.dart';
 import 'package:face_net_authentication/services/camera.service.dart';
 import 'package:face_net_authentication/services/facenet.service.dart';
+import 'package:face_net_authentication/util/colors.dart';
 import 'package:flutter/material.dart';
 import '../home.dart';
 import 'app_text_field.dart';
@@ -29,7 +28,11 @@ class _AuthActionButtonState extends State<AuthActionButton> {
 
   final TextEditingController _userTextEditingController =
       TextEditingController(text: '');
-  final TextEditingController _passwordTextEditingController =
+  final TextEditingController _idTextEditingController =
+      TextEditingController(text: '');
+  final TextEditingController _roleTextEditingController =
+      TextEditingController(text: '');
+  final TextEditingController _mobileTextEditingController =
       TextEditingController(text: '');
 
   User predictedUser;
@@ -37,11 +40,23 @@ class _AuthActionButtonState extends State<AuthActionButton> {
   Future _signUp(context) async {
     /// gets predicted data from facenet service (user face detected)
     List predictedData = _faceNetService.predictedData;
+    print(predictedData);
     String user = _userTextEditingController.text;
-    String password = _passwordTextEditingController.text;
+    // String password = _passwordTextEditingController.text;
+    String id = _idTextEditingController.text;
+    String mobile = _mobileTextEditingController.text;
+    String role = _roleTextEditingController.text;
 
     /// creates a new user in the 'database'
-    await _dataBaseService.saveData(user, password, predictedData);
+    await _dataBaseService.saveData(
+      id,
+      user,
+      // password,
+
+      mobile,
+      role,
+      predictedData,
+    );
 
     /// resets the face stored in the face net sevice
     this._faceNetService.setPredictedData(null);
@@ -50,26 +65,13 @@ class _AuthActionButtonState extends State<AuthActionButton> {
   }
 
   Future _signIn(context) async {
-    String password = _passwordTextEditingController.text;
-
-    if (this.predictedUser.password == password) {
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (BuildContext context) => Profile(
-                    this.predictedUser.user,
-                    imagePath: _cameraService.imagePath,
-                  )));
-    } else {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            content: Text('Wrong password!'),
-          );
-        },
-      );
-    }
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (BuildContext context) => Dashboard(
+                  this.predictedUser,
+                  imagePath: _cameraService.imagePath,
+                )));
   }
 
   String _predictUser() {
@@ -91,7 +93,7 @@ class _AuthActionButtonState extends State<AuthActionButton> {
             if (widget.isLogin) {
               var userAndPass = _predictUser();
               if (userAndPass != null) {
-                this.predictedUser = User.fromDB(userAndPass);
+                this.predictedUser = await User.fromDB(userAndPass);
               }
             }
             PersistentBottomSheetController bottomSheetController =
@@ -108,7 +110,7 @@ class _AuthActionButtonState extends State<AuthActionButton> {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
-          color: Color(0xFF0F0BDB),
+          color: primaryColor,
           boxShadow: <BoxShadow>[
             BoxShadow(
               color: Colors.blue.withOpacity(0.1),
@@ -155,43 +157,78 @@ class _AuthActionButtonState extends State<AuthActionButton> {
               : widget.isLogin
                   ? Container(
                       child: Text(
-                      'User not found 😞',
+                      'User not found!',
                       style: TextStyle(fontSize: 20),
                     ))
-                  : Container(),
+                  : Container(
+                      child: Text(
+                      'Enter details',
+                      style: TextStyle(fontSize: 20, color: primaryColor),
+                    )),
+          SizedBox(
+            height: 15,
+          ),
           Container(
             child: Column(
               children: [
                 !widget.isLogin
                     ? AppTextField(
                         controller: _userTextEditingController,
-                        labelText: "Your Name",
+                        labelText: "Name",
+                        icon: Icons.person,
                       )
                     : Container(),
                 SizedBox(height: 10),
-                widget.isLogin && predictedUser == null
-                    ? Container()
-                    : AppTextField(
-                        controller: _passwordTextEditingController,
-                        labelText: "Password",
-                        isPassword: true,
-                      ),
+                !widget.isLogin && predictedUser == null
+                    ? AppTextField(
+                        controller: _idTextEditingController,
+                        labelText: "NEO ID",
+                        icon: Icons.credit_card,
+                      )
+                    : Container(),
+                SizedBox(height: 10),
+                !widget.isLogin && predictedUser == null
+                    ? AppTextField(
+                        controller: _roleTextEditingController,
+                        labelText: "Role",
+                        icon: Icons.person_pin,
+                      )
+                    : Container(),
+                SizedBox(height: 10),
+                !widget.isLogin && predictedUser == null
+                    ? AppTextField(
+                        controller: _mobileTextEditingController,
+                        labelText: "Mobile",
+                        icon: Icons.phone,
+                        keyboardType: TextInputType.number,
+                      )
+                    : Container(),
+                SizedBox(height: 10),
+                // widget.isLogin && predictedUser == null
+                //     ? Container()
+                //     : AppTextField(
+                //         controller: _passwordTextEditingController,
+                //         labelText: "Password",
+                //         isPassword: true,
+                //       ),
                 SizedBox(height: 10),
                 Divider(),
                 SizedBox(height: 10),
                 widget.isLogin && predictedUser != null
                     ? AppButton(
-                        text: 'LOGIN',
+                        color: primaryColor,
+                        text: 'CONTINUE',
                         onPressed: () async {
                           _signIn(context);
                         },
                         icon: Icon(
-                          Icons.login,
+                          Icons.arrow_forward_rounded,
                           color: Colors.white,
                         ),
                       )
                     : !widget.isLogin
                         ? AppButton(
+                            color: primaryColor,
                             text: 'SIGN UP',
                             onPressed: () async {
                               await _signUp(context);
